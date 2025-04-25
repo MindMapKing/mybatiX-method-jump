@@ -1,0 +1,86 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# VSCode-MybatisX
+
+A Visual Studio Code extension that aims to provide similar functionality as the IntelliJ IDEA MybatisX plugin for MyBatis development.
+
+## Project Overview
+
+This project is inspired by the popular IntelliJ IDEA plugin [MybatisX](https://plugins.jetbrains.com/plugin/10119-mybatisx) and aims to bring its powerful features to VSCode users. The implementation will reference the existing [vscode-mybatisx](https://github.com/yuzhanglong/vscode-mybatisx) extension's integration patterns with VSCode.
+
+## Planned Features
+
+Based on the original MybatisX plugin functionality, we plan to implement:
+
+1. **Navigation and Generation**
+   - Jump between Mapper interfaces and XML files
+   - Generate Mapper XML files from Java interfaces
+   - Generate SQL statements for CRUD operations
+   - Generate ResultMap based on Java POJOs
+
+2. **Code Intelligence**
+   - SQL syntax highlighting
+   - Code completion for MyBatis parameters and SQL fragments
+   - Parameter name hints in XML
+   - XML validation
+
+3. **Database Integration**
+   - Database connection management
+   - Table to POJO generation
+   - SQL execution and results viewing
+
+4. **Project Structure**
+   The project will follow a standard VSCode extension structure:
+   ```
+   vscode-mybatisx/
+   ├── src/
+   │   ├── extension.ts          # Extension entry point
+   │   ├── language/            # Language support features
+   │   ├── completion/          # Code completion providers
+   │   ├── navigation/          # Jump/navigation features
+   │   ├── generation/          # Code generation utilities
+   │   ├── database/            # Database integration
+   │   └── utils/               # Common utilities
+   ├── syntaxes/                # TextMate grammar files
+   ├── package.json             # Extension manifest
+   └── tsconfig.json            # TypeScript configuration
+   ```
+
+## Development Approach
+
+1. **VSCode Integration**
+   - Utilize VSCode's Extension API
+   - Follow VSCode's extension development best practices
+   - Reference vscode-mybatisx's integration patterns
+
+2. **Feature Parity**
+   - Analyze MybatisX plugin features
+   - Implement equivalent functionality in VSCode
+   - Maintain consistent user experience
+
+3. **Modern Development**
+   - TypeScript-based implementation
+   - Strong typing and error handling
+   - Comprehensive testing
+
+## Getting Started
+
+(Development setup instructions will be added as the project progresses)
+
+## Contributing
+
+This project is under active development. Contributions are welcome!
+
+## License
+
+MIT License
+
+## Acknowledgments
+
+- IntelliJ IDEA MybatisX Plugin Team
+- VSCode-MybatisX contributors
+
+- MyBatis community 

@@ -1,0 +1,41 @@
+{
+  "iconDefinitions": {
+    "mybatis-java": {
+      "iconPath": "../resources/images/statement.svg"
+    },
+    "mybatis-xml": {
+      "iconPath": "../resources/images/mapper_method.svg"
+    }
+  },
+  "file": "mybatis-java",
+  "folder": "mybatis-java",
+  "folderExpanded": "mybatis-java",
+  "rootFolder": "mybatis-java",
+  "rootFolderExpanded": "mybatis-java",
+  "fileExtensions": {
+    "java": "mybatis-java",
+    "xml": "mybatis-xml"
+  },
+  "fileNames": {
+    "*Mapper.java": "mybatis-java",
+    "*Mapper.xml": "mybatis-xml"
+  },
+  "languageIds": {
+    "java": "mybatis-java",
+    "xml": "mybatis-xml"
+  },
+  "light": {
+    "file": "mybatis-java",
+    "folder": "mybatis-java",
+    "folderExpanded": "mybatis-java",
+    "rootFolder": "mybatis-java",
+    "rootFolderExpanded": "mybatis-java"
+  },
+  "highContrast": {
+    "file": "mybatis-java",
+    "folder": "mybatis-java",
+    "folderExpanded": "mybatis-java",
+    "rootFolder": "mybatis-java",
+    "rootFolderExpanded": "mybatis-java"
+  }
+} 
