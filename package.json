@@ -64,13 +64,6 @@
         "extensions": [".xml"]
       }
     ],
-    "iconThemes": [
-      {
-        "id": "mybatisxx-icons",
-        "label": "MybatisXX Icons",
-        "path": "./resources/mybatisxx-icon-theme.json"
-      }
-    ],
     "customEditorProviders": [
       {
         "viewType": "mybatisxx.mapperPreview",

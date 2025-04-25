@@ -13,6 +13,15 @@ export function activate(context: vscode.ExtensionContext) {
     outputChannel.show();
     outputChannel.appendLine('MybatisXX is now active!');
 
+    // 禁用图标主题功能，避免与装饰器冲突
+    // 如果用户启用了图标主题，则显示警告并建议禁用
+    const config = vscode.workspace.getConfiguration();
+    const iconTheme = config.get('workbench.iconTheme');
+    if (iconTheme === 'mybatisxx-icons') {
+        outputChannel.appendLine('警告：图标主题功能已启用，可能会与锚点导航功能冲突');
+        vscode.window.showWarningMessage('MybatisXX 不建议启用图标主题功能，这可能会导致锚点导航失效。请转到设置并将 "workbench.iconTheme" 设置为其他主题。');
+    }
+
     // Register SQL completion provider
     const sqlCompletionProvider = new SqlCompletionProvider();
     context.subscriptions.push(
@@ -60,6 +69,12 @@ export function activate(context: vscode.ExtensionContext) {
     fileWatcher.onDidChange((uri) => {
         outputChannel.appendLine(`Mapper file changed: ${uri.fsPath}`);
         vscode.commands.executeCommand('vscode.executeCodeLensProvider', uri);
+        
+        // 当文件变化时，也更新装饰器
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor && activeEditor.document.uri.toString() === uri.toString()) {
+            decorationProvider.updateDecorations(activeEditor);
+        }
     });
 
     // Register commands for navigation
@@ -132,6 +147,26 @@ export function activate(context: vscode.ExtensionContext) {
             if (doc.fileName.endsWith('Mapper.java') || doc.fileName.endsWith('Mapper.xml')) {
                 outputChannel.appendLine(`Document changed: ${doc.fileName}`);
                 vscode.commands.executeCommand('vscode.executeCodeLensProvider', doc.uri);
+                
+                // 更新装饰器
+                const activeEditor = vscode.window.activeTextEditor;
+                if (activeEditor && activeEditor.document.uri.toString() === doc.uri.toString()) {
+                    decorationProvider.updateDecorations(activeEditor);
+                }
+            }
+        })
+    );
+
+    // 初始应用装饰
+    if (vscode.window.activeTextEditor) {
+        decorationProvider.updateDecorations(vscode.window.activeTextEditor);
+    }
+
+    // 监听编辑器切换
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor((editor) => {
+            if (editor) {
+                decorationProvider.updateDecorations(editor);
             }
         })
     );
