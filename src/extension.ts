@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { MapperNavigator } from './navigation/MapperNavigator';
 import { SqlCompletionProvider } from './completion/sql/SqlCompletionProvider';
 import { MapperCodeLensProvider } from './providers/MapperCodeLensProvider';
+import { MapperDecorationProvider } from './providers/MapperDecorationProvider';
 
 // Create output channel
 let outputChannel: vscode.OutputChannel;
@@ -46,6 +47,11 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
     outputChannel.appendLine('CodeLens providers registered successfully');
+
+    // 初始化装饰器提供程序
+    const decorationProvider = new MapperDecorationProvider(context);
+    context.subscriptions.push(decorationProvider);
+    outputChannel.appendLine('Decoration provider registered successfully');
 
     // Add file watcher for Mapper files
     const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*Mapper.{java,xml}');

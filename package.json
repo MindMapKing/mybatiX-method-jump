@@ -3,6 +3,7 @@
   "displayName": "MybatisXX",
   "description": "Enhanced MyBatis support for VSCode, inspired by IntelliJ IDEA's MybatisX plugin",
   "version": "0.0.1",
+  "icon": "resources/images/logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/mybatisxx.git"
@@ -28,16 +29,16 @@
         "command": "mybatisx.gotoXml",
         "title": "MybatisXX: Go to XML",
         "icon": {
-          "light": "./resources/images/statement.svg",
-          "dark": "./resources/images/statement.svg"
+          "light": "./resources/icons/mybatis-java.svg",
+          "dark": "./resources/icons/mybatis-java.svg"
         }
       },
       {
         "command": "mybatisx.gotoJava",
         "title": "MybatisXX: Go to Java Interface",
         "icon": {
-          "light": "./resources/images/mapper_method.svg",
-          "dark": "./resources/images/mapper_method.svg"
+          "light": "./resources/icons/mybatis-xml.svg",
+          "dark": "./resources/icons/mybatis-xml.svg"
         }
       }
     ],

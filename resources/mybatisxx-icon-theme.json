@@ -1,10 +1,16 @@
 {
   "iconDefinitions": {
     "mybatis-java": {
-      "iconPath": "../resources/images/statement.svg"
+      "iconPath": "./icons/mybatis-java.svg"
     },
     "mybatis-xml": {
-      "iconPath": "../resources/images/mapper_method.svg"
+      "iconPath": "./icons/mybatis-xml.svg"
+    },
+    "mapper-method": {
+      "iconPath": "./icons/mapper_method.svg"
+    },
+    "statement": {
+      "iconPath": "./icons/statement.svg"
     }
   },
   "file": "mybatis-java",

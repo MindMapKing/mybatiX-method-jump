@@ -48,7 +48,11 @@ export class XmlParser {
             while ((match = regex.exec(text)) !== null) {
                 const id = match[1];
                 const sql = match[2].trim();
-                const position = document.positionAt(match.index);
+                
+                // Calculate position based on line number
+                const startPos = document.positionAt(match.index);
+                const line = document.lineAt(startPos.line);
+                const position = new vscode.Position(startPos.line, line.firstNonWhitespaceCharacterIndex);
                 
                 // Extract parameterType and resultType if present
                 const parameterType = this.extractAttribute(match[0], 'parameterType');
