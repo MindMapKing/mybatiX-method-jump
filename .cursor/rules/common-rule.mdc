@@ -4,3 +4,5 @@ globs:
 alwaysApply: true
 ---
 1、当前环境是window，生成命令时要能够window能执行，执行时使用command prompt方式
+
+2、代码生成结束前检查下是否有编译错误

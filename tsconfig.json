@@ -3,7 +3,17 @@
     "module": "commonjs",
     "target": "es6",
     "outDir": "out",
-    "lib": ["es6"],
+    "lib": [
+      "es6",
+      "dom",
+      "es2015",
+      "es2016",
+      "es2017",
+      "es2018",
+      "es2019",
+      "es2020",
+      "es2021"
+    ],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
@@ -14,7 +24,8 @@
     "noUnusedParameters": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
   },
   "exclude": ["node_modules", ".vscode-test"]
 } 

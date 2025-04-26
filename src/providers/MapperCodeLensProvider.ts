@@ -1,64 +1,72 @@
 import * as vscode from 'vscode';
-import { JavaParser } from '../language/java/JavaParser';
-import { XmlParser } from '../language/xml/XmlParser';
+import { JavaLanguageService, JavaMethodInfo } from '../language/java/JavaLanguageService';
+import { XmlParser, XmlMapperStatement } from '../language/xml/XmlParser';
+import { MapperUtils } from '../utils/MapperUtils';
 import { MapperNavigator } from '../navigation/MapperNavigator';
-import { Icons } from '../utils/Icons';
 
 export class MapperCodeLensProvider implements vscode.CodeLensProvider {
-    onDidChangeCodeLenses?: vscode.Event<void>;
+    private codeLenses: vscode.CodeLens[] = [];
+    private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+    public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-    async provideCodeLenses(
-        document: vscode.TextDocument,
-        _token: vscode.CancellationToken
-    ): Promise<vscode.CodeLens[]> {
-        const codeLenses: vscode.CodeLens[] = [];
+    public async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
+        this.codeLenses = [];
 
-        if (document.fileName.endsWith('.java')) {
-            // For Java mapper interface
-            const methods = JavaParser.parseMapperInterface(document);
-            const xmlUri = await MapperNavigator.findXmlForJavaMapper(document);
+        try {
+            if (document.fileName.endsWith('.java')) {
+                if (await JavaLanguageService.isMapperInterface(document)) {
+                    const methods = await JavaLanguageService.getMethodsInFile(document);
+                    
+                    for (const method of methods) {
+                        const range = new vscode.Range(
+                            method.position,
+                            method.position
+                        );
 
-            if (xmlUri) {
-                const xmlDoc = await vscode.workspace.openTextDocument(xmlUri);
-                const statements = XmlParser.parseMapperXml(xmlDoc);
-
-                for (const method of methods) {
-                    const statement = statements.find(s => s.id === method.name);
-                    if (statement) {
-                        const range = document.lineAt(method.position.line).range;
-                        codeLenses.push(new vscode.CodeLens(range, {
-                            title: '$(zap) Go to XML',
-                            command: 'mybatisx.gotoXml',
-                            arguments: [xmlUri, statement.position],
-                            tooltip: 'Navigate to the corresponding XML statement'
-                        }));
+                        // 查找对应的XML文件
+                        const xmlUri = await MapperNavigator.findXmlForJavaMapper(document, method.name);
+                        if (xmlUri) {
+                            this.codeLenses.push(new vscode.CodeLens(range, {
+                                title: '跳转到XML',
+                                command: 'mybatisx.gotoXml',
+                                arguments: [xmlUri]
+                            }));
+                        }
+                    }
+                }
+            } else if (document.fileName.endsWith('.xml')) {
+                // 检查是否是有效的MyBatis XML文件
+                if (document.getText().includes('<mapper') && document.getText().includes('namespace=')) {
+                    const statements = XmlParser.parseMapperXml(document);
+                    
+                    if (statements && statements.length > 0) {
+                        for (const statement of statements) {
+                            try {
+                                const javaFile = await MapperUtils.findJavaFile(document);
+                                if (javaFile) {
+                                    const javaDoc = await vscode.workspace.openTextDocument(javaFile);
+                                    const methods = await JavaLanguageService.getMethodsInFile(javaDoc);
+                                    const method = methods.find((m: JavaMethodInfo) => m.name === statement.id);
+                                    if (method) {
+                                        const range = new vscode.Range(statement.position, statement.position);
+                                        this.codeLenses.push(new vscode.CodeLens(range, {
+                                            title: '跳转到Java方法',
+                                            command: 'mybatisx.gotoJava',
+                                            arguments: [javaFile, method.position]
+                                        }));
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`Error processing statement ${statement.id}:`, error);
+                            }
+                        }
                     }
                 }
             }
-        } else if (document.fileName.endsWith('.xml')) {
-            // For MyBatis XML file
-            const statements = XmlParser.parseMapperXml(document);
-            const javaUri = await MapperNavigator.findJavaForXmlMapper(document);
-
-            if (javaUri) {
-                const javaDoc = await vscode.workspace.openTextDocument(javaUri);
-                const methods = JavaParser.parseMapperInterface(javaDoc);
-
-                for (const statement of statements) {
-                    const method = methods.find(m => m.name === statement.id);
-                    if (method) {
-                        const range = document.lineAt(statement.position.line).range;
-                        codeLenses.push(new vscode.CodeLens(range, {
-                            title: '$(symbol-method) Go to Java',
-                            command: 'mybatisx.gotoJava',
-                            arguments: [javaUri, method.position],
-                            tooltip: 'Navigate to the corresponding Java method'
-                        }));
-                    }
-                }
-            }
+        } catch (error) {
+            console.error('Error providing CodeLenses:', error);
         }
 
-        return codeLenses;
+        return this.codeLenses;
     }
 } 

@@ -1,194 +1,311 @@
 import * as vscode from 'vscode';
-import { JavaParser } from '../language/java/JavaParser';
-import { XmlParser } from '../language/xml/XmlParser';
+import * as path from 'path';
+import { JavaLanguageService, JavaMethodInfo } from '../language/java/JavaLanguageService';
+import { XmlParser, XmlMapperStatement } from '../language/xml/XmlParser';
 import { MapperNavigator } from '../navigation/MapperNavigator';
 
+// 存储装饰位置与方法映射关系的接口
+interface DecoratorMapping {
+    type: 'java' | 'xml';
+    methodName: string;
+    range: vscode.Range;
+    document: vscode.TextDocument;
+}
+
 export class MapperDecorationProvider {
-    private javaDecorationType: vscode.TextEditorDecorationType;
-    private xmlDecorationType: vscode.TextEditorDecorationType;
+    private decorationType: vscode.TextEditorDecorationType;
     private disposables: vscode.Disposable[] = [];
+    // 添加标志控制装饰器功能
+    private decorationsEnabled: boolean = true; // 默认启用
+    // 存储当前编辑器中的装饰位置和方法名映射
+    private decorationMappings: DecoratorMapping[] = [];
 
-    constructor(context: vscode.ExtensionContext) {
-        // 创建Java装饰类型
-        this.javaDecorationType = vscode.window.createTextEditorDecorationType({
-            gutterIconPath: context.asAbsolutePath('resources/icons/mybatis-java.svg'),
-            gutterIconSize: '16px'
+    constructor() {
+        // 创建装饰器类型
+        this.decorationType = this.createDecorationType('mapper_method.svg');
+        
+        // 默认启用装饰器
+        this.decorationsEnabled = true;
+    }
+
+    /**
+     * 创建装饰器类型
+     */
+    private createDecorationType(iconName: string): vscode.TextEditorDecorationType {
+        return vscode.window.createTextEditorDecorationType({
+            before: {
+                width: '14px',
+                height: '14px',
+                contentIconPath: this.getIconPath(iconName),
+                margin: '0'
+            },
+            rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
         });
+    }
 
-        // 创建XML装饰类型
-        this.xmlDecorationType = vscode.window.createTextEditorDecorationType({
-            gutterIconPath: context.asAbsolutePath('resources/icons/mybatis-xml.svg'),
-            gutterIconSize: '16px'
-        });
-
-        // 注册点击事件
-        context.subscriptions.push(
-            vscode.commands.registerCommand('mybatisx.handleIconClick', async (editor: vscode.TextEditor, position: vscode.Position) => {
-                const document = editor.document;
-                const outputChannel = vscode.window.createOutputChannel('MybatisXX-IconClick');
-                outputChannel.appendLine(`处理图标点击事件：文件=${document.fileName}, 行=${position.line+1}, 列=${position.character}`);
-                
-                if (document.fileName.endsWith('Mapper.java')) {
-                    // 处理Java文件中图标点击
-                    const methods = JavaParser.parseMapperInterface(document);
-                    outputChannel.appendLine(`Java文件中找到 ${methods.length} 个方法`);
-                    
-                    for (const method of methods) {
-                        outputChannel.appendLine(`检查方法: ${method.name} 位于行 ${method.position.line+1}`);
-                        if (position.line === method.position.line) {
-                            outputChannel.appendLine(`找到匹配的Java方法: ${method.name}`);
-                            const xmlUri = await MapperNavigator.findXmlForJavaMapper(document);
-                            if (xmlUri) {
-                                outputChannel.appendLine(`找到对应的XML文件: ${xmlUri.fsPath}`);
-                                const xmlDoc = await vscode.workspace.openTextDocument(xmlUri);
-                                const statements = XmlParser.parseMapperXml(xmlDoc);
-                                const statement = statements.find(s => s.id === method.name);
-                                if (statement) {
-                                    outputChannel.appendLine(`在XML中找到对应的语句，位于行 ${statement.position.line+1}`);
-                                    const xmlEditor = await vscode.window.showTextDocument(xmlDoc);
-                                    xmlEditor.selection = new vscode.Selection(statement.position, statement.position);
-                                    xmlEditor.revealRange(new vscode.Range(statement.position, statement.position));
-                                    return true;
-                                } else {
-                                    outputChannel.appendLine(`未找到方法 ${method.name} 对应的XML语句`);
-                                }
-                            } else {
-                                outputChannel.appendLine(`未找到对应的XML文件`);
-                            }
-                            break;
-                        }
-                    }
-                } else if (document.fileName.endsWith('Mapper.xml')) {
-                    // 处理XML文件中图标点击
-                    const statements = XmlParser.parseMapperXml(document);
-                    outputChannel.appendLine(`XML文件中找到 ${statements.length} 个语句`);
-                    
-                    for (const statement of statements) {
-                        outputChannel.appendLine(`检查语句: ${statement.id} 位于行 ${statement.position.line+1}`);
-                        if (position.line === statement.position.line) {
-                            outputChannel.appendLine(`找到匹配的XML语句: ${statement.id}`);
-                            const javaUri = await MapperNavigator.findJavaForXmlMapper(document);
-                            if (javaUri) {
-                                outputChannel.appendLine(`找到对应的Java文件: ${javaUri.fsPath}`);
-                                const javaDoc = await vscode.workspace.openTextDocument(javaUri);
-                                const methods = JavaParser.parseMapperInterface(javaDoc);
-                                const method = methods.find(m => m.name === statement.id);
-                                if (method) {
-                                    outputChannel.appendLine(`在Java中找到对应的方法，位于行 ${method.position.line+1}`);
-                                    const javaEditor = await vscode.window.showTextDocument(javaDoc);
-                                    javaEditor.selection = new vscode.Selection(method.position, method.position);
-                                    javaEditor.revealRange(new vscode.Range(method.position, method.position));
-                                    return true;
-                                } else {
-                                    outputChannel.appendLine(`未找到语句 ${statement.id} 对应的Java方法`);
-                                }
-                            } else {
-                                outputChannel.appendLine(`未找到对应的Java文件`);
-                            }
-                            break;
-                        }
-                    }
-                }
-                outputChannel.appendLine(`未能处理该点击事件`);
-                return false;
-            })
+    /**
+     * 获取图标路径
+     */
+    private getIconPath(iconName: string): vscode.Uri {
+        return vscode.Uri.file(
+            path.join(__dirname, '..', '..', 'resources', 'icons', iconName)
         );
+    }
 
-        // 监听编辑器变化
-        this.disposables.push(
-            vscode.window.onDidChangeActiveTextEditor(editor => {
-                if (editor) {
-                    this.updateDecorations(editor);
-                }
-            }),
+    /**
+     * 更新装饰器类型
+     */
+    private updateDecorationType(iconName: string) {
+        if (this.decorationType) {
+            this.decorationType.dispose();
+        }
+        this.decorationType = this.createDecorationType(iconName);
+    }
+
+    /**
+     * 注册装饰器提供者
+     */
+    public static register(context: vscode.ExtensionContext): MapperDecorationProvider {
+        const provider = new MapperDecorationProvider();
+        provider.registerCommands(context);
+        return provider;
+    }
+
+    /**
+     * 注册相关命令
+     */
+    private registerCommands(context: vscode.ExtensionContext) {
+        // 注册更新装饰器的事件处理
+        const disposable = vscode.window.onDidChangeActiveTextEditor(async editor => {
+            if (editor && this.decorationsEnabled) {
+                await this.updateDecorations(editor);
+            }
+        });
+
+        // 注册文档变化的事件处理
+        const changeDisposable = vscode.workspace.onDidChangeTextDocument(async event => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && event.document === editor.document && this.decorationsEnabled) {
+                await this.updateDecorations(editor);
+            }
+        });
+
+        // 注册鼠标点击事件处理
+        const clickDisposable = vscode.window.onDidChangeTextEditorSelection(async (e) => {
+            if (!this.decorationsEnabled || !e.textEditor || e.selections.length === 0) {
+                return;
+            }
+
+            const clicked = e.selections[0].start;
+            const document = e.textEditor.document;
             
-            vscode.workspace.onDidChangeTextDocument(event => {
-                if (vscode.window.activeTextEditor && event.document === vscode.window.activeTextEditor.document) {
-                    this.updateDecorations(vscode.window.activeTextEditor);
+            // 检查点击位置是否在我们的装饰范围内
+            for (const mapping of this.decorationMappings) {
+                if (document.uri.toString() === mapping.document.uri.toString() &&
+                    mapping.range.contains(clicked)) {
+                    
+                    // 用户点击了装饰器，执行跳转
+                    await this.handleDecorationClick(mapping.type, mapping.methodName, mapping.document);
+                    break;
                 }
-            }),
+            }
+        });
 
-            // 为行号区域的点击添加监听
-            vscode.window.onDidChangeTextEditorSelection(event => {
-                // 检测点击事件
-                const editor = event.textEditor;
-                if (event.kind === vscode.TextEditorSelectionChangeKind.Mouse && 
-                    event.selections.length === 1 && 
-                    event.selections[0].isEmpty) {
-                    // 用户进行了单击
-                    const position = event.selections[0].active;
-                    const outputChannel = vscode.window.createOutputChannel('MybatisXX-Click');
-                    
-                    // 判断是否点击了装饰器图标（行号区域附近）
-                    outputChannel.appendLine(`检测到点击: 行=${position.line+1}, 列=${position.character}`);
-                    
-                    // 修改检测逻辑，VSCode的图标区域通常在较小的character范围内
-                    if (position.character <= 2) {
-                        outputChannel.appendLine(`可能点击了图标区域，尝试处理导航`);
-                        vscode.commands.executeCommand('mybatisx.handleIconClick', editor, position)
-                            .then((result: any) => {
-                                if (result !== true) {
-                                    outputChannel.appendLine(`图标点击处理返回: ${result}, 尝试执行常规跳转命令`);
-                                    // 如果没有处理图标点击，则检查是否应该触发常规的导航命令
-                                    if (editor.document.fileName.endsWith('Mapper.java')) {
-                                        outputChannel.appendLine(`执行 Java -> XML 跳转命令`);
-                                        vscode.commands.executeCommand('mybatisx.gotoXml');
-                                    } else if (editor.document.fileName.endsWith('Mapper.xml')) {
-                                        outputChannel.appendLine(`执行 XML -> Java 跳转命令`);
-                                        vscode.commands.executeCommand('mybatisx.gotoJava');
-                                    }
-                                } else {
-                                    outputChannel.appendLine(`图标点击处理成功`);
-                                }
-                            });
+        // 立即更新当前编辑器的装饰器
+        if (vscode.window.activeTextEditor && this.decorationsEnabled) {
+            this.updateDecorations(vscode.window.activeTextEditor);
+        }
+
+        this.disposables.push(disposable, changeDisposable, clickDisposable, this.decorationType);
+        context.subscriptions.push(...this.disposables);
+    }
+
+    /**
+     * 处理装饰器点击事件
+     */
+    private async handleDecorationClick(fileType: 'java' | 'xml', methodName: string, document: vscode.TextDocument): Promise<void> {
+        if (fileType === 'java') {
+            // 从Java跳转到XML
+            const xmlUri = await MapperNavigator.findXmlForJavaMapper(document, methodName);
+            if (xmlUri) {
+                const xmlDoc = await vscode.workspace.openTextDocument(xmlUri);
+                await vscode.window.showTextDocument(xmlDoc);
+                // 可以添加定位到特定XML节点的逻辑
+            } else {
+                vscode.window.showInformationMessage(`未找到对应的XML声明: ${methodName}`);
+            }
+        } else if (fileType === 'xml') {
+            // 从XML跳转到Java
+            const javaUri = await MapperNavigator.findJavaForXmlMapper(document);
+            if (javaUri) {
+                const javaDoc = await vscode.workspace.openTextDocument(javaUri);
+                await vscode.window.showTextDocument(javaDoc);
+                // 定位到特定方法
+                const methodPosition = await MapperNavigator.findMethodInJavaFile(javaDoc, methodName);
+                if (methodPosition) {
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        editor.selection = new vscode.Selection(methodPosition, methodPosition);
+                        editor.revealRange(new vscode.Range(methodPosition, methodPosition));
                     }
                 }
-            })
+            } else {
+                vscode.window.showInformationMessage(`未找到对应的Java接口: ${methodName}`);
+            }
+        }
+    }
+
+    /**
+     * 更新装饰器
+     */
+    public async updateDecorations(editor: vscode.TextEditor) {
+        // 如果装饰器被禁用，清除所有装饰并返回
+        if (!this.decorationsEnabled) {
+            editor.setDecorations(this.decorationType, []);
+            this.decorationMappings = []; // 清空映射
+            return;
+        }
+
+        const document = editor.document;
+        const decorations: vscode.DecorationOptions[] = [];
+        this.decorationMappings = []; // 重置映射
+
+        try {
+            if (document.fileName.endsWith('.java')) {
+                // 为Java方法使用Java图标
+                this.updateDecorationType('mybatis-java.svg');
+
+                // 处理Java文件
+                const methods = await JavaLanguageService.getMethodsInFile(document);
+                for (const method of methods) {
+                    const decoration = this.createJavaMethodDecoration(method, document);
+                    if (decoration) {
+                        decorations.push(decoration);
+                        
+                        // 存储装饰位置与方法的映射
+                        const line = document.lineAt(method.iconPosition.line);
+                        const range = new vscode.Range(
+                            new vscode.Position(line.lineNumber, 0),
+                            new vscode.Position(line.lineNumber, line.firstNonWhitespaceCharacterIndex)
+                        );
+                        this.decorationMappings.push({
+                            type: 'java',
+                            methodName: method.name,
+                            range,
+                            document
+                        });
+                    }
+                }
+            } else if (document.fileName.endsWith('.xml')) {
+                // 为XML语句使用XML图标
+                this.updateDecorationType('mybatis-xml.svg');
+
+                // 处理XML文件
+                const statements = XmlParser.parseMapperXml(document);
+                for (const statement of statements) {
+                    const decoration = this.createXmlStatementDecoration(statement, document);
+                    if (decoration) {
+                        decorations.push(decoration);
+                        
+                        // 存储XML语句位置与方法的映射
+                        const range = new vscode.Range(
+                            new vscode.Position(statement.position.line, 0),
+                            statement.position
+                        );
+                        this.decorationMappings.push({
+                            type: 'xml',
+                            methodName: statement.id,
+                            range,
+                            document
+                        });
+                    }
+                }
+            }
+
+            // 应用装饰器
+            editor.setDecorations(this.decorationType, decorations);
+        } catch (error) {
+            console.error('Error updating decorations:', error);
+        }
+    }
+
+    /**
+     * 创建Java方法的装饰器
+     */
+    private createJavaMethodDecoration(method: JavaMethodInfo, document: vscode.TextDocument): vscode.DecorationOptions {
+        const line = document.lineAt(method.iconPosition.line);
+        const firstNonWhitespaceCharacterIndex = line.firstNonWhitespaceCharacterIndex;
+        
+        // 创建一个只包含行号前的范围
+        const range = new vscode.Range(
+            new vscode.Position(line.lineNumber, 0),
+            new vscode.Position(line.lineNumber, firstNonWhitespaceCharacterIndex)
         );
 
-        // 初始更新
-        if (vscode.window.activeTextEditor) {
+        return {
+            range,
+            hoverMessage: new vscode.MarkdownString()
+                .appendText(`${method.returnType} ${method.name}(`)
+                .appendText(method.parameters.map(p => `${p.type} ${p.name}`).join(', '))
+                .appendText(')'),
+            renderOptions: {
+                before: {
+                    backgroundColor: new vscode.ThemeColor('editor.background'),
+                    contentText: '',
+                    width: '14px',
+                    height: '14px'
+                }
+            }
+            // DecorationOptions不支持command属性，需要以其他方式处理点击事件
+        };
+    }
+
+    /**
+     * 创建XML语句的装饰器
+     */
+    private createXmlStatementDecoration(statement: XmlMapperStatement, document: vscode.TextDocument): vscode.DecorationOptions {
+        // 创建一个只包含行号前的范围
+        const range = new vscode.Range(
+            new vscode.Position(statement.position.line, 0),
+            statement.position
+        );
+
+        return {
+            range,
+            hoverMessage: new vscode.MarkdownString()
+                .appendText(`${statement.type} ${statement.id}`)
+                .appendText(statement.parameterType ? `\nParameter Type: ${statement.parameterType}` : '')
+                .appendText(statement.resultType ? `\nResult Type: ${statement.resultType}` : ''),
+            renderOptions: {
+                before: {
+                    backgroundColor: new vscode.ThemeColor('editor.background'),
+                    contentText: '',
+                    width: '14px',
+                    height: '14px'
+                }
+            }
+            // DecorationOptions不支持command属性，需要以其他方式处理点击事件
+        };
+    }
+
+    /**
+     * 启用或禁用装饰器
+     */
+    public setEnabled(enabled: boolean): void {
+        this.decorationsEnabled = enabled;
+        // 如果禁用，清除当前编辑器的所有装饰
+        if (!enabled && vscode.window.activeTextEditor) {
+            vscode.window.activeTextEditor.setDecorations(this.decorationType, []);
+        } else if (enabled && vscode.window.activeTextEditor) {
+            // 如果启用，立即更新装饰
             this.updateDecorations(vscode.window.activeTextEditor);
         }
     }
 
-    public dispose(): void {
-        this.javaDecorationType.dispose();
-        this.xmlDecorationType.dispose();
+    /**
+     * 销毁装饰器
+     */
+    public dispose() {
         this.disposables.forEach(d => d.dispose());
-    }
-
-    public async updateDecorations(editor: vscode.TextEditor): Promise<void> {
-        const document = editor.document;
-        
-        if (document.fileName.endsWith('Mapper.java')) {
-            const methods = JavaParser.parseMapperInterface(document);
-            const javaDecorations: vscode.DecorationOptions[] = [];
-
-            for (const method of methods) {
-                const range = document.lineAt(method.position.line).range;
-                javaDecorations.push({ range });
-            }
-
-            editor.setDecorations(this.javaDecorationType, javaDecorations);
-            editor.setDecorations(this.xmlDecorationType, []);
-        } 
-        else if (document.fileName.endsWith('Mapper.xml')) {
-            const statements = XmlParser.parseMapperXml(document);
-            const xmlDecorations: vscode.DecorationOptions[] = [];
-
-            for (const statement of statements) {
-                const range = document.lineAt(statement.position.line).range;
-                xmlDecorations.push({ range });
-            }
-
-            editor.setDecorations(this.xmlDecorationType, xmlDecorations);
-            editor.setDecorations(this.javaDecorationType, []);
-        }
-        else {
-            // 清除装饰
-            editor.setDecorations(this.javaDecorationType, []);
-            editor.setDecorations(this.xmlDecorationType, []);
-        }
     }
 } 
