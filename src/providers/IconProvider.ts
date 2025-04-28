@@ -11,17 +11,17 @@ export class MybatisIconProvider {
     public registerFileIcons() {
         const iconPath = {
             light: {
-                javaMapper: this.context.asAbsolutePath(path.join('resources', Icons.STATEMENT_SVG)),
-                xmlMapper: this.context.asAbsolutePath(path.join('resources', Icons.MAPPER_METHOD_SVG))
+                javaMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_JAVA_SVG)),
+                xmlMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_XML_SVG))
             },
             dark: {
-                javaMapper: this.context.asAbsolutePath(path.join('resources', Icons.STATEMENT_SVG)),
-                xmlMapper: this.context.asAbsolutePath(path.join('resources', Icons.MAPPER_METHOD_SVG))
+                javaMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_JAVA_SVG)),
+                xmlMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_XML_SVG))
             }
         };
 
         // 注册文件图标
-        vscode.workspace.getConfiguration().update('workbench.iconTheme', 'mybatisxx-icons', true);
+        vscode.workspace.getConfiguration().update('workbench.iconTheme', 'mybatisxx-icons', vscode.ConfigurationTarget.Global);
         
         // 注册自定义编辑器图标
         this.context.subscriptions.push(

@@ -4,6 +4,7 @@ import { SqlCompletionProvider } from './completion/sql/SqlCompletionProvider';
 import { MapperCodeLensProvider } from './providers/MapperCodeLensProvider';
 import { MapperDecorationProvider } from './providers/MapperDecorationProvider';
 import { JavaLanguageService, JavaMethodInfo } from './language/java/JavaLanguageService';
+import { registerIconProvider } from './providers/IconProvider';
 
 // Create output channel
 let outputChannel: vscode.OutputChannel;
@@ -20,6 +21,10 @@ export function activate(context: vscode.ExtensionContext) {
     const enableDecorations = config.get<boolean>('enableDecorations', true);
 
     outputChannel.appendLine(`配置：启用代码锚点跳转: ${enableCodeLens}, 启用方法前图标: ${enableDecorations}`);
+
+    // 注册图标提供器
+    registerIconProvider(context);
+    outputChannel.appendLine('Icon provider registered');
 
     // 禁用图标主题功能，避免与装饰器冲突
     // 如果用户启用了图标主题，则显示警告并建议禁用
@@ -76,6 +81,17 @@ export function activate(context: vscode.ExtensionContext) {
     decorationProvider.setEnabled(enableDecorations);
     context.subscriptions.push(decorationProvider);
     outputChannel.appendLine(`Decoration provider registered with enabled=${enableDecorations}`);
+    
+    // 为当前打开的所有编辑器应用装饰
+    if (enableDecorations) {
+        vscode.window.visibleTextEditors.forEach(editor => {
+            if (editor.document.fileName.endsWith('Mapper.java') || 
+                editor.document.fileName.endsWith('Mapper.xml')) {
+                decorationProvider.updateDecorations(editor);
+                outputChannel.appendLine(`Applied initial decorations to ${editor.document.fileName}`);
+            }
+        });
+    }
 
     // Add file watcher for Mapper files
     const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*Mapper.{java,xml}');
@@ -224,11 +240,6 @@ export function activate(context: vscode.ExtensionContext) {
             }
         })
     );
-
-    // 初始应用装饰
-    if (vscode.window.activeTextEditor) {
-        decorationProvider.updateDecorations(vscode.window.activeTextEditor);
-    }
 
     // 监听编辑器切换
     context.subscriptions.push(

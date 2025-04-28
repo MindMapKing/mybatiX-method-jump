@@ -46,7 +46,8 @@ export class MapperCodeLensProvider implements vscode.CodeLensProvider {
                                 if (javaFile) {
                                     const javaDoc = await vscode.workspace.openTextDocument(javaFile);
                                     const methods = await JavaLanguageService.getMethodsInFile(javaDoc);
-                                    const method = methods.find((m: JavaMethodInfo) => m.name === statement.id);
+                                    const method = methods.find((m: JavaMethodInfo) => 
+                                        m.name === statement.id && m.namespace === statement.namespace);
                                     if (method) {
                                         const range = new vscode.Range(statement.position, statement.position);
                                         this.codeLenses.push(new vscode.CodeLens(range, {

@@ -22,7 +22,9 @@
     "java": "mybatis-java",
     "xml": "mybatis-xml"
   },
-  "fileNames": {
+  "fileNames": [
+  ],
+  "filenamePatterns": {
     "*Mapper.java": "mybatis-java",
     "*Mapper.xml": "mybatis-xml"
   },

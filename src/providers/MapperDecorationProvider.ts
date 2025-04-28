@@ -34,11 +34,12 @@ export class MapperDecorationProvider {
     private createDecorationType(iconName: string): vscode.TextEditorDecorationType {
         return vscode.window.createTextEditorDecorationType({
             before: {
+                contentIconPath: this.getIconPath(iconName),
                 width: '14px',
                 height: '14px',
-                contentIconPath: this.getIconPath(iconName),
-                margin: '0'
+                margin: '0 4px 0 0'
             },
+            isWholeLine: false,
             rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
         });
     }
@@ -47,9 +48,9 @@ export class MapperDecorationProvider {
      * 获取图标路径
      */
     private getIconPath(iconName: string): vscode.Uri {
-        return vscode.Uri.file(
-            path.join(__dirname, '..', '..', 'resources', 'icons', iconName)
-        );
+        // 使用当前文件路径来确定正确的图标相对路径
+        const extensionPath = path.join(__dirname, '..', '..');
+        return vscode.Uri.file(path.join(extensionPath, 'resources', 'icons', iconName));
     }
 
     /**
@@ -171,7 +172,7 @@ export class MapperDecorationProvider {
         this.decorationMappings = []; // 重置映射
 
         try {
-            if (document.fileName.endsWith('.java')) {
+            if (document.fileName.endsWith('Mapper.java')) {
                 // 为Java方法使用Java图标
                 this.updateDecorationType('mybatis-java.svg');
 
@@ -196,7 +197,7 @@ export class MapperDecorationProvider {
                         });
                     }
                 }
-            } else if (document.fileName.endsWith('.xml')) {
+            } else if (document.fileName.endsWith('Mapper.xml')) {
                 // 为XML语句使用XML图标
                 this.updateDecorationType('mybatis-xml.svg');
 
@@ -247,16 +248,7 @@ export class MapperDecorationProvider {
             hoverMessage: new vscode.MarkdownString()
                 .appendText(`${method.returnType} ${method.name}(`)
                 .appendText(method.parameters.map(p => `${p.type} ${p.name}`).join(', '))
-                .appendText(')'),
-            renderOptions: {
-                before: {
-                    backgroundColor: new vscode.ThemeColor('editor.background'),
-                    contentText: '',
-                    width: '14px',
-                    height: '14px'
-                }
-            }
-            // DecorationOptions不支持command属性，需要以其他方式处理点击事件
+                .appendText(')')
         };
     }
 
@@ -275,16 +267,7 @@ export class MapperDecorationProvider {
             hoverMessage: new vscode.MarkdownString()
                 .appendText(`${statement.type} ${statement.id}`)
                 .appendText(statement.parameterType ? `\nParameter Type: ${statement.parameterType}` : '')
-                .appendText(statement.resultType ? `\nResult Type: ${statement.resultType}` : ''),
-            renderOptions: {
-                before: {
-                    backgroundColor: new vscode.ThemeColor('editor.background'),
-                    contentText: '',
-                    width: '14px',
-                    height: '14px'
-                }
-            }
-            // DecorationOptions不支持command属性，需要以其他方式处理点击事件
+                .appendText(statement.resultType ? `\nResult Type: ${statement.resultType}` : '')
         };
     }
 
