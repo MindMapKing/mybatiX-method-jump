@@ -1,7 +1,7 @@
 {
   "name": "mybatisxx",
-  "displayName": "MybatisXX",
-  "description": "Enhanced MyBatis support for VSCode, inspired by IntelliJ IDEA's MybatisX plugin",
+  "displayName": "MybatisXX Navigator",
+  "description": "MyBatis XML和Java接口之间的导航工具",
   "version": "0.0.1",
   "icon": "resources/images/logo.png",
   "repository": {
@@ -13,7 +13,6 @@
   },
   "categories": [
     "Programming Languages",
-    "Snippets",
     "Other"
   ],
   "activationEvents": [
@@ -27,7 +26,7 @@
     "commands": [
       {
         "command": "mybatisx.gotoXml",
-        "title": "MybatisXX: Go to XML",
+        "title": "MybatisXX: 跳转到XML文件",
         "icon": {
           "light": "./resources/icons/mybatis-java.svg",
           "dark": "./resources/icons/mybatis-java.svg"
@@ -35,7 +34,7 @@
       },
       {
         "command": "mybatisx.gotoJava",
-        "title": "MybatisXX: Go to Java Interface",
+        "title": "MybatisXX: 跳转到Java接口",
         "icon": {
           "light": "./resources/icons/mybatis-xml.svg",
           "dark": "./resources/icons/mybatis-xml.svg"
@@ -91,49 +90,17 @@
           "description": "启用方法前图标显示功能"
         }
       }
-    },
-    "customEditorProviders": [
-      {
-        "viewType": "mybatisxx.mapperPreview",
-        "displayName": "MyBatis Mapper Preview",
-        "selector": [
-          {
-            "filenamePattern": "*Mapper.xml"
-          }
-        ]
-      }
-    ],
-    "iconThemes": [
-      {
-        "id": "mybatisxx-icons",
-        "label": "MybatisXX Icons",
-        "path": "./resources/mybatisxx-icon-theme.json"
-      }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "test": "jest"
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "@types/jest": "^27.0.0",
-    "@types/mssql": "^9.1.7",
     "@types/node": "^14.x",
-    "@types/oracledb": "^6.6.0",
-    "@types/pg": "^8.11.14",
-    "@types/tedious": "^4.0.14",
     "@types/vscode": "^1.60.0",
-    "jest": "^27.0.0",
     "typescript": "^4.x"
-  },
-  "dependencies": {
-    "ejs": "^3.1.6",
-    "mssql": "^11.0.1",
-    "mysql2": "^3.14.0",
-    "oracledb": "^5.3.0",
-    "pg": "^8.7.1"
   },
   "license": "MIT",
   "extensionDependencies": [

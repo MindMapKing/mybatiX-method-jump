@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { MapperNavigator } from './navigation/MapperNavigator';
-import { SqlCompletionProvider } from './completion/sql/SqlCompletionProvider';
 import { MapperCodeLensProvider } from './providers/MapperCodeLensProvider';
 import { MapperDecorationProvider } from './providers/MapperDecorationProvider';
 import { JavaLanguageService, JavaMethodInfo } from './language/java/JavaLanguageService';
@@ -13,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Initialize output channel
     outputChannel = vscode.window.createOutputChannel('MybatisXX');
     outputChannel.show();
-    outputChannel.appendLine('MybatisXX is now active!');
+    outputChannel.appendLine('MybatisXX 导航功能已激活!');
 
     // 获取配置
     const config = vscode.workspace.getConfiguration('mybatisx');
@@ -24,31 +23,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 注册图标提供器
     registerIconProvider(context);
-    outputChannel.appendLine('Icon provider registered');
-
-    // 检查配置兼容性
-    const workbenchConfig = vscode.workspace.getConfiguration('workbench');
-    const iconTheme = workbenchConfig.get('iconTheme');
-    if (iconTheme === 'mybatisxx-icons') {
-        outputChannel.appendLine(`当前使用的图标主题: ${iconTheme}`);
-    }
-
-    // Register SQL completion provider
-    const sqlCompletionProvider = new SqlCompletionProvider();
-    context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider(
-            { scheme: 'file', language: 'xml' },
-            sqlCompletionProvider,
-            '#', // Trigger character for parameter completion
-            ' '  // Trigger character for SQL keyword completion
-        )
-    );
+    outputChannel.appendLine('图标提供器已注册');
 
     // 如果启用了代码锚点跳转功能，注册CodeLens提供者
     if (enableCodeLens) {
         // Register code lens provider for both Java and XML files
         const codeLensProvider = new MapperCodeLensProvider();
-        outputChannel.appendLine('Registering CodeLens provider for Java and XML files...');
+        outputChannel.appendLine('正在注册Java和XML文件的CodeLens提供器...');
         
         context.subscriptions.push(
             vscode.languages.registerCodeLensProvider(
@@ -68,9 +49,9 @@ export function activate(context: vscode.ExtensionContext) {
                 codeLensProvider
             )
         );
-        outputChannel.appendLine('CodeLens providers registered successfully');
+        outputChannel.appendLine('CodeLens提供器注册成功');
     } else {
-        outputChannel.appendLine('CodeLens provider is disabled by configuration');
+        outputChannel.appendLine('CodeLens提供器已被禁用');
     }
 
     // 初始化装饰器提供程序
@@ -78,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 根据配置启用或禁用装饰器
     decorationProvider.setEnabled(enableDecorations);
     context.subscriptions.push(decorationProvider);
-    outputChannel.appendLine(`Decoration provider registered with enabled=${enableDecorations}`);
+    outputChannel.appendLine(`装饰器提供器已注册，启用状态=${enableDecorations}`);
     
     // 为当前打开的所有编辑器应用装饰
     if (enableDecorations) {
@@ -86,17 +67,17 @@ export function activate(context: vscode.ExtensionContext) {
             if (editor.document.fileName.endsWith('Mapper.java') || 
                 editor.document.fileName.endsWith('Mapper.xml')) {
                 decorationProvider.updateDecorations(editor);
-                outputChannel.appendLine(`Applied initial decorations to ${editor.document.fileName}`);
+                outputChannel.appendLine(`已为 ${editor.document.fileName} 应用初始装饰`);
             }
         });
     }
 
-    // Add file watcher for Mapper files
+    // 为Mapper文件添加文件监听器
     const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*Mapper.{java,xml}');
     context.subscriptions.push(fileWatcher);
     
     fileWatcher.onDidChange((uri) => {
-        outputChannel.appendLine(`Mapper file changed: ${uri.fsPath}`);
+        outputChannel.appendLine(`Mapper文件已更改: ${uri.fsPath}`);
         if (enableCodeLens) {
             vscode.commands.executeCommand('vscode.executeCodeLensProvider', uri);
         }
@@ -143,10 +124,10 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // Register commands for navigation
+    // 注册导航命令
     context.subscriptions.push(
         vscode.commands.registerCommand('mybatisx.gotoXml', async (xmlUri?: vscode.Uri, position?: vscode.Position) => {
-            outputChannel.appendLine('Executing gotoXml command...');
+            outputChannel.appendLine('执行gotoXml命令...');
             
             if (xmlUri) {
                 // 这是从CodeLens调用的情况
@@ -156,12 +137,12 @@ export function activate(context: vscode.ExtensionContext) {
                     editor.selection = new vscode.Selection(position, position);
                     editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
                 }
-                outputChannel.appendLine(`Navigated to XML file: ${xmlUri.fsPath}`);
+                outputChannel.appendLine(`已导航到XML文件: ${xmlUri.fsPath}`);
             } else {
                 // 这是从活动编辑器中当前位置调用的情况
                 const editor = vscode.window.activeTextEditor;
                 if (!editor || !editor.document.fileName.endsWith('Mapper.java')) {
-                    outputChannel.appendLine('No active Mapper.java file found');
+                    outputChannel.appendLine('未找到活动的Mapper.java文件');
                     return;
                 }
 
@@ -178,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
                     return;
                 }
 
-                outputChannel.appendLine(`Searching XML for Java method: ${method.name}`);
+                outputChannel.appendLine(`正在查找Java方法对应的XML: ${method.name}`);
                 const xmlInfo = await MapperNavigator.findXmlForJavaMapper(editor.document, method.name);
                 if (xmlInfo) {
                     const doc = await vscode.workspace.openTextDocument(xmlInfo);
@@ -194,16 +175,16 @@ export function activate(context: vscode.ExtensionContext) {
                         );
                     }
                     
-                    outputChannel.appendLine(`Found and opened XML file: ${xmlInfo.fsPath}`);
+                    outputChannel.appendLine(`已找到并打开XML文件: ${xmlInfo.fsPath}`);
                 } else {
-                    outputChannel.appendLine('Corresponding XML file not found');
+                    outputChannel.appendLine('未找到对应的XML文件');
                     vscode.window.showWarningMessage('找不到对应的XML文件或方法');
                 }
             }
         }),
 
         vscode.commands.registerCommand('mybatisx.gotoJava', async (javaUri?: vscode.Uri, position?: vscode.Position) => {
-            outputChannel.appendLine('Executing gotoJava command...');
+            outputChannel.appendLine('执行gotoJava命令...');
             if (javaUri) {
                 const doc = await vscode.workspace.openTextDocument(javaUri);
                 const editor = await vscode.window.showTextDocument(doc);
@@ -211,15 +192,15 @@ export function activate(context: vscode.ExtensionContext) {
                     editor.selection = new vscode.Selection(position, position);
                     editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
                 }
-                outputChannel.appendLine(`Navigated to Java file: ${javaUri.fsPath}`);
+                outputChannel.appendLine(`已导航到Java文件: ${javaUri.fsPath}`);
             } else {
                 const editor = vscode.window.activeTextEditor;
                 if (!editor || !editor.document.fileName.endsWith('Mapper.xml')) {
-                    outputChannel.appendLine('No active Mapper.xml file found');
+                    outputChannel.appendLine('未找到活动的Mapper.xml文件');
                     return;
                 }
 
-                outputChannel.appendLine(`Searching Java interface for XML file: ${editor.document.fileName}`);
+                outputChannel.appendLine(`正在查找XML文件对应的Java接口: ${editor.document.fileName}`);
                 
                 // 获取当前光标位置的XML语句对应的Java方法
                 const cursorPosition = editor.selection.active;
@@ -236,27 +217,27 @@ export function activate(context: vscode.ExtensionContext) {
                         vscode.TextEditorRevealType.InCenter
                     );
                     
-                    outputChannel.appendLine(`Found and opened Java file: ${javaInfo.javaFile.fsPath} at method ${javaInfo.methodName}`);
+                    outputChannel.appendLine(`已找到并打开Java文件: ${javaInfo.javaFile.fsPath} 中的方法 ${javaInfo.methodName}`);
                 } else {
                     // 如果找不到具体方法，尝试打开Java接口
                     const uri = await MapperNavigator.findJavaForXmlMapper(editor.document);
                     if (uri) {
                         const doc = await vscode.workspace.openTextDocument(uri);
                         await vscode.window.showTextDocument(doc);
-                        outputChannel.appendLine(`Found and opened Java file: ${uri.fsPath}`);
+                        outputChannel.appendLine(`已找到并打开Java文件: ${uri.fsPath}`);
                     } else {
-                        outputChannel.appendLine('Corresponding Java interface not found');
+                        outputChannel.appendLine('未找到对应的Java接口');
                         vscode.window.showWarningMessage('找不到对应的Java接口');
                     }
                 }
             }
         }),
 
-        // Add document change listener
+        // 添加文档变更监听器
         vscode.workspace.onDidChangeTextDocument((event) => {
             const doc = event.document;
             if (doc.fileName.endsWith('Mapper.java') || doc.fileName.endsWith('Mapper.xml')) {
-                outputChannel.appendLine(`Document changed: ${doc.fileName}`);
+                outputChannel.appendLine(`文档已更改: ${doc.fileName}`);
                 vscode.commands.executeCommand('vscode.executeCodeLensProvider', doc.uri);
                 
                 // 更新装饰器
@@ -280,12 +261,12 @@ export function activate(context: vscode.ExtensionContext) {
     // 注册Mapper文件导航命令
     MapperNavigator.registerCommands(context);
 
-    outputChannel.appendLine('MybatisXX extension initialization completed');
+    outputChannel.appendLine('MybatisXX 扩展初始化完成');
 }
 
 export function deactivate() {
     if (outputChannel) {
-        outputChannel.appendLine('MybatisXX extension is now deactivated');
+        outputChannel.appendLine('MybatisXX 扩展已停用');
         outputChannel.dispose();
     }
 } 
