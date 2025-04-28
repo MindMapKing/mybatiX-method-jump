@@ -3,8 +3,8 @@ import * as path from 'path';
 import { Icons } from '../utils/Icons';
 
 export class MybatisIconProvider {
-    private static readonly JAVA_MAPPER_PATTERN = /.*Mapper\.java$/;
     private static readonly XML_MAPPER_PATTERN = /.*Mapper\.xml$/;
+    private static readonly JAVA_MAPPER_PATTERN = /.*Mapper\.java$/;
 
     constructor(private context: vscode.ExtensionContext) {}
 
@@ -19,9 +19,6 @@ export class MybatisIconProvider {
                 xmlMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_XML_SVG))
             }
         };
-
-        // 注册文件图标
-        vscode.workspace.getConfiguration().update('workbench.iconTheme', 'mybatisxx-icons', vscode.ConfigurationTarget.Global);
         
         // 注册自定义编辑器图标
         this.context.subscriptions.push(

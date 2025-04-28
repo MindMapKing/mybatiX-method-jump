@@ -107,4 +107,19 @@ export class XmlParser {
         const match = statement.match(new RegExp(`${attributeName}="([^"]+)"`));
         return match ? match[1] : undefined;
     }
+    
+    /**
+     * 从XML文档中获取命名空间信息
+     */
+    public async getNamespaceFromDocument(document: vscode.TextDocument): Promise<{namespace: string} | undefined> {
+        const text = document.getText();
+        const namespaceMatch = text.match(/<mapper[^>]+namespace="([^"]+)"/);
+        
+        if (namespaceMatch) {
+            const namespace = namespaceMatch[1];
+            return { namespace };
+        }
+        
+        return undefined;
+    }
 } 

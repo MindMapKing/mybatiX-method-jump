@@ -61,7 +61,7 @@ export class JavaLanguageService {
     /**
      * 从Java文件中提取完整的类名（命名空间）
      */
-    private static async getFullClassName(document: vscode.TextDocument): Promise<string> {
+    public static async getFullClassName(document: vscode.TextDocument): Promise<string> {
         const outputChannel = this.getOutputChannel();
         try {
             const text = document.getText();

@@ -26,13 +26,11 @@ export function activate(context: vscode.ExtensionContext) {
     registerIconProvider(context);
     outputChannel.appendLine('Icon provider registered');
 
-    // 禁用图标主题功能，避免与装饰器冲突
-    // 如果用户启用了图标主题，则显示警告并建议禁用
+    // 检查配置兼容性
     const workbenchConfig = vscode.workspace.getConfiguration('workbench');
     const iconTheme = workbenchConfig.get('iconTheme');
     if (iconTheme === 'mybatisxx-icons') {
-        outputChannel.appendLine('警告：图标主题功能已启用，可能会与锚点导航功能冲突');
-        vscode.window.showWarningMessage('MybatisXX 不建议启用图标主题功能，这可能会导致锚点导航失效。请转到设置并将 "workbench.iconTheme" 设置为其他主题。');
+        outputChannel.appendLine(`当前使用的图标主题: ${iconTheme}`);
     }
 
     // Register SQL completion provider
@@ -156,7 +154,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const editor = await vscode.window.showTextDocument(doc);
                 if (position) {
                     editor.selection = new vscode.Selection(position, position);
-                    editor.revealRange(new vscode.Range(position, position));
+                    editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
                 }
                 outputChannel.appendLine(`Navigated to XML file: ${xmlUri.fsPath}`);
             } else {
@@ -181,11 +179,22 @@ export function activate(context: vscode.ExtensionContext) {
                 }
 
                 outputChannel.appendLine(`Searching XML for Java method: ${method.name}`);
-                const uri = await MapperNavigator.findXmlForJavaMapper(editor.document, method.name);
-                if (uri) {
-                    const doc = await vscode.workspace.openTextDocument(uri);
-                    await vscode.window.showTextDocument(doc);
-                    outputChannel.appendLine(`Found and opened XML file: ${uri.fsPath}`);
+                const xmlInfo = await MapperNavigator.findXmlForJavaMapper(editor.document, method.name);
+                if (xmlInfo) {
+                    const doc = await vscode.workspace.openTextDocument(xmlInfo);
+                    const xmlEditor = await vscode.window.showTextDocument(doc);
+                    
+                    // 找到XML中对应的方法位置并定位
+                    const xmlPosition = MapperNavigator.findXmlMethodForJavaMethod(doc, method.name);
+                    if (xmlPosition) {
+                        xmlEditor.selection = new vscode.Selection(xmlPosition, xmlPosition);
+                        xmlEditor.revealRange(
+                            new vscode.Range(xmlPosition, xmlPosition), 
+                            vscode.TextEditorRevealType.InCenter
+                        );
+                    }
+                    
+                    outputChannel.appendLine(`Found and opened XML file: ${xmlInfo.fsPath}`);
                 } else {
                     outputChannel.appendLine('Corresponding XML file not found');
                     vscode.window.showWarningMessage('找不到对应的XML文件或方法');
@@ -200,7 +209,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const editor = await vscode.window.showTextDocument(doc);
                 if (position) {
                     editor.selection = new vscode.Selection(position, position);
-                    editor.revealRange(new vscode.Range(position, position));
+                    editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
                 }
                 outputChannel.appendLine(`Navigated to Java file: ${javaUri.fsPath}`);
             } else {
@@ -211,21 +220,39 @@ export function activate(context: vscode.ExtensionContext) {
                 }
 
                 outputChannel.appendLine(`Searching Java interface for XML file: ${editor.document.fileName}`);
-                const uri = await MapperNavigator.findJavaForXmlMapper(editor.document);
-                if (uri) {
-                    const doc = await vscode.workspace.openTextDocument(uri);
-                    await vscode.window.showTextDocument(doc);
-                    outputChannel.appendLine(`Found and opened Java file: ${uri.fsPath}`);
+                
+                // 获取当前光标位置的XML语句对应的Java方法
+                const cursorPosition = editor.selection.active;
+                const javaInfo = await MapperNavigator.findJavaMethodForXmlPosition(editor.document, cursorPosition);
+                
+                if (javaInfo) {
+                    const doc = await vscode.workspace.openTextDocument(javaInfo.javaFile);
+                    const javaEditor = await vscode.window.showTextDocument(doc);
+                    
+                    // 将光标定位到方法名位置
+                    javaEditor.selection = new vscode.Selection(javaInfo.methodPosition, javaInfo.methodPosition);
+                    javaEditor.revealRange(
+                        new vscode.Range(javaInfo.methodPosition, javaInfo.methodPosition), 
+                        vscode.TextEditorRevealType.InCenter
+                    );
+                    
+                    outputChannel.appendLine(`Found and opened Java file: ${javaInfo.javaFile.fsPath} at method ${javaInfo.methodName}`);
                 } else {
-                    outputChannel.appendLine('Corresponding Java interface not found');
-                    vscode.window.showWarningMessage('Corresponding Java interface not found');
+                    // 如果找不到具体方法，尝试打开Java接口
+                    const uri = await MapperNavigator.findJavaForXmlMapper(editor.document);
+                    if (uri) {
+                        const doc = await vscode.workspace.openTextDocument(uri);
+                        await vscode.window.showTextDocument(doc);
+                        outputChannel.appendLine(`Found and opened Java file: ${uri.fsPath}`);
+                    } else {
+                        outputChannel.appendLine('Corresponding Java interface not found');
+                        vscode.window.showWarningMessage('找不到对应的Java接口');
+                    }
                 }
             }
-        })
-    );
+        }),
 
-    // Add document change listener
-    context.subscriptions.push(
+        // Add document change listener
         vscode.workspace.onDidChangeTextDocument((event) => {
             const doc = event.document;
             if (doc.fileName.endsWith('Mapper.java') || doc.fileName.endsWith('Mapper.xml')) {

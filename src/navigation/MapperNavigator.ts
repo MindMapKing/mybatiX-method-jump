@@ -297,9 +297,90 @@ export class MapperNavigator {
         methodName: string
     ): Promise<vscode.Position | undefined> {
         try {
-            const methods = await JavaLanguageService.getMethodsInFile(javaDocument);
-            const method = methods.find(m => m.name === methodName);
-            return method?.position;
+            outputChannel.appendLine(`Finding method ${methodName} in Java file`);
+            
+            const text = javaDocument.getText();
+            // 尝试找到准确的方法声明
+            const methodPattern = new RegExp(
+                // 匹配方法声明，支持各种修饰符和返回类型
+                `(public|protected|private)?\\s*(static)?\\s*[\\w<>\\[\\],\\s]+\\s+${methodName}\\s*\\([^)]*\\)`,
+                'g'
+            );
+            
+            let match: RegExpExecArray | null;
+            
+            while ((match = methodPattern.exec(text)) !== null) {
+                // 找到方法声明位置
+                let position = javaDocument.positionAt(match.index);
+                
+                // 在匹配的行中查找方法名，定位到方法名开始位置
+                const line = javaDocument.lineAt(position.line).text;
+                const methodNameIndex = line.indexOf(methodName);
+                if (methodNameIndex >= 0) {
+                    position = new vscode.Position(position.line, methodNameIndex);
+                }
+                
+                outputChannel.appendLine(`Found method at line ${position.line + 1}, column ${position.character}`);
+                return position;
+            }
+            
+            // 如果没有找到精确匹配，尝试不区分大小写匹配
+            const methodPatternCaseInsensitive = new RegExp(
+                `(public|protected|private)?\\s*(static)?\\s*[\\w<>\\[\\],\\s]+\\s+${methodName.toLowerCase()}\\s*\\([^)]*\\)`,
+                'i'
+            );
+            
+            while ((match = methodPatternCaseInsensitive.exec(text)) !== null) {
+                // 找到方法声明位置
+                let position = javaDocument.positionAt(match.index);
+                
+                // 在匹配的行中查找方法名，尝试定位到方法名开始位置
+                const line = javaDocument.lineAt(position.line).text;
+                const methodNameRegex = new RegExp(`\\b${methodName}\\b`, 'i');
+                const methodMatch = methodNameRegex.exec(line);
+                if (methodMatch) {
+                    position = new vscode.Position(position.line, methodMatch.index);
+                }
+                
+                outputChannel.appendLine(`Found method with case-insensitive match at line ${position.line + 1}, column ${position.character}`);
+                return position;
+            }
+            
+            // 尝试查找部分匹配的方法名
+            // 例如，XML中的"selectUser"可能在Java中是"selectUserById"
+            const javaLines = text.split('\n');
+            for (let i = 0; i < javaLines.length; i++) {
+                const line = javaLines[i];
+                
+                // 检查这行是否包含方法名
+                if (line.includes(methodName) || 
+                    line.toLowerCase().includes(methodName.toLowerCase())) {
+                    
+                    // 确保这是一个方法声明而不是变量或注释
+                    if (line.match(/\s*\w+\s+\w+\s*\([^)]*\)/) && !line.trim().startsWith("//") && !line.trim().startsWith("*")) {
+                        // 尝试定位到方法名的位置
+                        const methodNameIndex = line.indexOf(methodName);
+                        let column = 0;
+                        if (methodNameIndex >= 0) {
+                            column = methodNameIndex;
+                        } else {
+                            // 如果找不到精确匹配，尝试不区分大小写
+                            const methodNameRegex = new RegExp(`\\b${methodName}\\b`, 'i');
+                            const methodMatch = methodNameRegex.exec(line);
+                            if (methodMatch) {
+                                column = methodMatch.index;
+                            }
+                        }
+                        
+                        outputChannel.appendLine(`Found potential method match at line ${i + 1}, column ${column}`);
+                        return new vscode.Position(i, column);
+                    }
+                }
+            }
+            
+            outputChannel.appendLine(`Method ${methodName} not found in Java file`);
+            return undefined;
+            
         } catch (error) {
             console.error('Error finding method in Java file:', error);
             return undefined;
@@ -345,5 +426,239 @@ export class MapperNavigator {
                 }
             })
         );
+    }
+
+    /**
+     * Find corresponding Java file for an XML file
+     */
+    public static async findJavaFileForXmlFile(document: vscode.TextDocument): Promise<vscode.Uri | undefined> {
+        const xmlParser = new XmlParser();
+        try {
+            const namespaceInfo = await xmlParser.getNamespaceFromDocument(document);
+            if (!namespaceInfo) {
+                outputChannel.appendLine('No namespace found in XML file');
+                return undefined;
+            }
+
+            outputChannel.appendLine(`XML namespace: ${namespaceInfo.namespace}`);
+            
+            // 搜索对应的Java接口文件
+            const javaFiles = await vscode.workspace.findFiles('**/*.java', '**/node_modules/**');
+            
+            // 首先尝试完全匹配命名空间
+            for (const javaFile of javaFiles) {
+                try {
+                    const javaDocument = await vscode.workspace.openTextDocument(javaFile);
+                    const isMapper = await JavaLanguageService.isMapperInterface(javaDocument);
+                    
+                    if (isMapper) {
+                        const className = await JavaLanguageService.getFullClassName(javaDocument);
+                        
+                        if (className && className === namespaceInfo.namespace) {
+                            outputChannel.appendLine(`Found exact match Java file: ${javaFile.fsPath}`);
+                            return javaFile;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error checking Java file ${javaFile.fsPath}:`, error);
+                }
+            }
+            
+            // 如果没有找到完全匹配，尝试通过简单类名匹配
+            const simpleNameMatch = namespaceInfo.namespace.split('.').pop();
+            if (simpleNameMatch) {
+                for (const javaFile of javaFiles) {
+                    try {
+                        const javaDocument = await vscode.workspace.openTextDocument(javaFile);
+                        const isMapper = await JavaLanguageService.isMapperInterface(javaDocument);
+                        
+                        if (isMapper) {
+                            const className = await JavaLanguageService.getFullClassName(javaDocument);
+                            
+                            if (className && className.endsWith('.' + simpleNameMatch)) {
+                                outputChannel.appendLine(`Found Java file by simple name: ${javaFile.fsPath}`);
+                                return javaFile;
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Error checking Java file ${javaFile.fsPath}:`, error);
+                    }
+                }
+            }
+            
+            // 尝试通过文件名匹配（XML文件名通常与接口名相似）
+            const xmlFileName = path.basename(document.fileName, '.xml');
+            for (const javaFile of javaFiles) {
+                const javaFileName = path.basename(javaFile.fsPath, '.java');
+                
+                // 检查文件名是否相似（忽略大小写和Mapper后缀）
+                if (xmlFileName.toLowerCase() === javaFileName.toLowerCase() ||
+                    xmlFileName.toLowerCase() === javaFileName.toLowerCase().replace('mapper', '')) {
+                    
+                    try {
+                        const javaDocument = await vscode.workspace.openTextDocument(javaFile);
+                        const isMapper = await JavaLanguageService.isMapperInterface(javaDocument);
+                        
+                        if (isMapper) {
+                            outputChannel.appendLine(`Found Java file by filename: ${javaFile.fsPath}`);
+                            return javaFile;
+                        }
+                    } catch (error) {
+                        console.error(`Error checking Java file ${javaFile.fsPath}:`, error);
+                    }
+                }
+            }
+
+            outputChannel.appendLine(`No matching Java file found for namespace: ${namespaceInfo.namespace}`);
+            return undefined;
+        } catch (error) {
+            console.error('Error finding Java file for XML:', error);
+            return undefined;
+        }
+    }
+
+    /**
+     * Find method in XML file by current position and navigate to corresponding Java method
+     */
+    public static async findJavaMethodForXmlPosition(
+        xmlDocument: vscode.TextDocument,
+        position: vscode.Position
+    ): Promise<{javaFile: vscode.Uri, methodName: string, methodPosition: vscode.Position} | undefined> {
+        outputChannel.appendLine('Finding Java method for XML position');
+        
+        try {
+            // 先找到对应的Java文件
+            const javaFile = await this.findJavaFileForXmlFile(xmlDocument);
+            if (!javaFile) {
+                outputChannel.appendLine('Could not find corresponding Java file');
+                return undefined;
+            }
+            
+            // 使用XML解析器找到光标所在的XML语句
+            const statements = XmlParser.parseMapperXml(xmlDocument);
+            
+            // 查找光标在哪个语句内
+            let targetStatement: XmlMapperStatement | undefined;
+            
+            for (const statement of statements) {
+                // 获取语句的整个区域
+                const text = xmlDocument.getText();
+                const statementMatch = new RegExp(`<${statement.type}[^>]+id="${statement.id}"[^>]*>[\\s\\S]*?</${statement.type}>`, 'g');
+                let match;
+                
+                while ((match = statementMatch.exec(text)) !== null) {
+                    const startPos = xmlDocument.positionAt(match.index);
+                    const endPos = xmlDocument.positionAt(match.index + match[0].length);
+                    
+                    const statementRange = new vscode.Range(startPos, endPos);
+                    
+                    // 检查当前位置是否在这个语句内
+                    if (statementRange.contains(position)) {
+                        targetStatement = statement;
+                        break;
+                    }
+                }
+                
+                if (targetStatement) {
+                    break;
+                }
+            }
+            
+            if (!targetStatement) {
+                // 如果找不到语句，尝试通过行号查找最接近的语句
+                outputChannel.appendLine('Could not find statement by range, trying by position');
+                
+                let closestStatement: XmlMapperStatement | undefined;
+                let minDistance = Number.MAX_SAFE_INTEGER;
+                
+                for (const statement of statements) {
+                    const distance = Math.abs(statement.position.line - position.line);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestStatement = statement;
+                    }
+                }
+                
+                // 只在距离相对较近的情况下使用最近的语句
+                if (minDistance < 10) {
+                    targetStatement = closestStatement;
+                }
+            }
+            
+            if (!targetStatement) {
+                outputChannel.appendLine('Could not identify SQL statement at current position');
+                return undefined;
+            }
+            
+            outputChannel.appendLine(`Found XML statement: ${targetStatement.id}`);
+            
+            // 打开Java文件并找到对应的方法
+            const javaDocument = await vscode.workspace.openTextDocument(javaFile);
+            const methodPosition = await this.findMethodInJavaFile(javaDocument, targetStatement.id);
+            
+            if (!methodPosition) {
+                outputChannel.appendLine(`Could not find method ${targetStatement.id} in Java file`);
+                return undefined;
+            }
+            
+            // 注意：findMethodInJavaFile方法已经被修改为定位到方法名而不是注释行
+            outputChannel.appendLine(`Found Java method at line ${methodPosition.line + 1}, column ${methodPosition.character}`);
+            
+            return {
+                javaFile,
+                methodName: targetStatement.id,
+                methodPosition
+            };
+            
+        } catch (error) {
+            console.error('Error while finding Java method:', error);
+            return undefined;
+        }
+    }
+    
+    /**
+     * Find XML statement in XML file by method name
+     */
+    public static findXmlMethodForJavaMethod(
+        xmlDocument: vscode.TextDocument,
+        methodName: string
+    ): vscode.Position | undefined {
+        outputChannel.appendLine(`Finding XML statement for method: ${methodName}`);
+        
+        try {
+            const statements = XmlParser.parseMapperXml(xmlDocument);
+            const statement = statements.find(stmt => stmt.id === methodName);
+            
+            if (statement) {
+                outputChannel.appendLine(`Found XML statement at line ${statement.position.line + 1}`);
+                return statement.position;
+            } else {
+                // 尝试不区分大小写的匹配
+                const statementCaseInsensitive = statements.find(
+                    stmt => stmt.id.toLowerCase() === methodName.toLowerCase()
+                );
+                
+                if (statementCaseInsensitive) {
+                    outputChannel.appendLine(`Found XML statement with case-insensitive match at line ${statementCaseInsensitive.position.line + 1}`);
+                    return statementCaseInsensitive.position;
+                }
+                
+                // 尝试部分匹配（方法名可能包含参数信息）
+                const partialMatchStatement = statements.find(
+                    stmt => methodName.includes(stmt.id) || stmt.id.includes(methodName)
+                );
+                
+                if (partialMatchStatement) {
+                    outputChannel.appendLine(`Found XML statement with partial match at line ${partialMatchStatement.position.line + 1}`);
+                    return partialMatchStatement.position;
+                }
+                
+                outputChannel.appendLine(`No XML statement found for method ${methodName}`);
+                return undefined;
+            }
+        } catch (error) {
+            console.error('Error finding XML statement:', error);
+            return undefined;
+        }
     }
 } 
