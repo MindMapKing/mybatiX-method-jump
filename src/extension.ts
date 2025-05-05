@@ -3,7 +3,7 @@ import { MapperNavigator } from './navigation/MapperNavigator';
 import { MapperCodeLensProvider } from './providers/MapperCodeLensProvider';
 import { MapperDecorationProvider } from './providers/MapperDecorationProvider';
 import { JavaLanguageService, JavaMethodInfo } from './language/java/JavaLanguageService';
-import { registerIconProvider } from './providers/IconProvider';
+import { registerIconProvider } from './providers/BadgeProvider';
 
 // Create output channel
 let outputChannel: vscode.OutputChannel;

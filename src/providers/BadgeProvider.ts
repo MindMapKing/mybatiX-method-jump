@@ -11,12 +11,12 @@ export class MybatisIconProvider {
     public registerFileIcons() {
         const iconPath = {
             light: {
-                javaMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_JAVA_SVG)),
-                xmlMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_XML_SVG))
+                javaMapper: this.context.asAbsolutePath(path.join('resources', 'images', Icons.MYBATIS_JAVA_PNG)),
+                xmlMapper: this.context.asAbsolutePath(path.join('resources', 'images', Icons.MYBATIS_XML_PNG))
             },
             dark: {
-                javaMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_JAVA_SVG)),
-                xmlMapper: this.context.asAbsolutePath(path.join('resources', 'icons', Icons.MYBATIS_XML_SVG))
+                javaMapper: this.context.asAbsolutePath(path.join('resources', 'images', Icons.MYBATIS_JAVA_PNG)),
+                xmlMapper: this.context.asAbsolutePath(path.join('resources', 'images', Icons.MYBATIS_XML_PNG))
             }
         };
         

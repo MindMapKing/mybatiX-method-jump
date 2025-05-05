@@ -14,8 +14,12 @@
     }
   },
   "filenamePatterns": {
-    "*Mapper.java": "mybatis-java",
-    "*Mapper.xml": "mybatis-xml"
+    "**/*Mapper.java": "mybatis-java",
+    "**/*Mapper.xml": "mybatis-xml"
+  },
+  "fileExtensions": {
+    "xml": null,
+    "java": null
   },
   "light": {
     "file": null,
